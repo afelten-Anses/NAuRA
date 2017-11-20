@@ -23,7 +23,7 @@ __doc__="""
 def get_parser():
 
 
-	parser = argparse.ArgumentParser(description='Query detection by Blast and typing workflow')
+	parser = argparse.ArgumentParser(description='Nice Automatic Research of Alleles')
 
 	parser.add_argument('-i', action="store", dest='Repertoire', 
 						type=str, required=True, help="Folder with GBK files, these files must be in the format \
@@ -35,7 +35,7 @@ def get_parser():
 	parser.add_argument('-q', action="store", dest='query', 
 						type=str, required=True, help="Text file with query Fasta path, one per line (REQUIRED). \
 						Optional, set cov and id percent separated by tabulation. Add '_1' for each query. \
-						No supplementary '_' character.")
+						No supplementary '_' character. Each query file name must have the same name as the allele name.")
 	
 	parser.add_argument('-l', action="store", dest='liste', 
 						type=str, default='list.txt', help='Text file with the already analyzed \
@@ -58,10 +58,10 @@ def get_parser():
 						(default:1)')
 
 	parser.add_argument('--nucl', dest='nucl', action='store_true', 
-						help='query = nucleic', default=False)
+						help='Specify query are nucleic sequences', default=False)
 
 	parser.add_argument('--withPhylo', dest='withPhylo', action='store_true', 
-						help='do the phylogeny of new alleles', default=False)
+						help='Do the phylogeny analysis of new alleles', default=False)
 
 	parser.add_argument('--keepBlastAln', dest='keepBlastAln', action='store_true', 
 						help='Keep blast results for each genome', default=False)
@@ -74,6 +74,7 @@ def get_parser():
 
 
 class CDS_nucl(object) :
+	# Class used to extract CDS nucleic sequence from genbank file
 
 	def __init__(self):
 		"""
@@ -135,6 +136,7 @@ class CDS_nucl(object) :
 		
 
 def check_extern_tools(programs):
+	#Check if externals tools are present in the path
 
 	programs_status = dict(zip(programs, [False] * len(programs)))
 	# Check if the programs are available
@@ -154,6 +156,7 @@ def check_extern_tools(programs):
 
 
 def select_strain_to_analyse(liste, genbank_files): 
+	# Select genomes if their IDs are not present in the list file
 
 	position_to_delete = []
 
@@ -186,6 +189,7 @@ def select_strain_to_analyse(liste, genbank_files):
 
 
 def genbank_to_faa(genbank, fasta): 
+	# extract CDS amino acids from genbank
 	input_handle  = open(genbank, "r")
 	output_handle = open(fasta, "w")
 	for seq_record in SeqIO.parse(input_handle, "genbank") :
@@ -201,9 +205,7 @@ def genbank_to_faa(genbank, fasta):
 
 
 def genbank_to_fna(genbank, fasta): 
-
-	print fasta
-		
+	# extract CDS nucleic from genbank	
 	gbk = open(genbank, 'r')
 	lines = gbk.readlines()
 	gbk.close()
@@ -211,6 +213,8 @@ def genbank_to_fna(genbank, fasta):
 	is_seq = False
 
 	list_CDS_per_contig = []
+	list_prokkaID = []
+	new_gene = False
 
 	for line in lines :
 
@@ -218,6 +222,7 @@ def genbank_to_fna(genbank, fasta):
 
 		if ' CDS ' in line :
 			new_CDS = CDS_nucl()
+			new_gene = True
 			
 			if "complement" in line:
 				new_CDS.complement = True
@@ -228,8 +233,16 @@ def genbank_to_fna(genbank, fasta):
 			new_CDS.pos_start = int(line.split('.')[0])
 			new_CDS.pos_end = int(line.split('.')[-1])
 		
-		elif '/locus_tag=' in line :
+		elif '/locus_tag=' in line and new_gene:
+			new_gene = False
 			prokkaID = line.split('"')[1]
+			if prokkaID not in list_prokkaID :
+				list_prokkaID.append(prokkaID)
+			else :
+				prokkaID = prokkaID + '-2'
+				while prokkaID in list_prokkaID :
+					ID = int(prokkaID.split('-')[-1]) + 1
+					prokkaID = '-'.join(prokkaID.split('-')[0:-1]) + '-' + str(ID)
 			new_CDS.id = prokkaID
 			list_CDS_per_contig.append(new_CDS)
 		
@@ -248,10 +261,13 @@ def genbank_to_fna(genbank, fasta):
 			for character in line :
 				if character == 'a' or character == 't' or \
 				character == 'g' or character == 'c' :
-					sequence = sequence + character					
+					sequence = sequence + character				
 
 
 def fastaFiles_merge(query, output_fasta_combin, cov, id): 
+	# merge all alleles in a fasta file and return a dictionnary with specific 
+	# similarity and coverage for each query
+
 	#nom fichier query == nom de la query (xxxx.faa --> >xxx_1 dans fasta)
 
 	fastas = open(query,'r')
@@ -307,15 +323,18 @@ def fastaFiles_merge(query, output_fasta_combin, cov, id):
 
 			dico_query[query_name]=[cov, id]		
 
-
-	os.system("cat " + ' '.join(liste_fasta) + ' > ' + output_fasta_combin)	
+	with open(output_fasta_combin, 'w') as w_file:
+		for filen in liste_fasta:
+			with open(filen, 'rU') as o_file:
+				seq_records = SeqIO.parse(o_file, 'fasta')
+				SeqIO.write(seq_records, w_file, 'fasta')
 
 	return dico_query
 
 
 def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 	query_faa, query_list):
-
+	# filter blast result and select allele number if filter pass
 
 	blastfile = open(resultBlast,'r')
 	lines = blastfile.readlines()
@@ -324,6 +343,9 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 	query_len = fasta_length(query_faa)
 
 	dico_result = {}
+
+	for element in dico_cov_id :
+		dico_result[element] = '0'
 
 	last_queryId = ""
 	add_seq = False
@@ -396,6 +418,7 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 
 def blast_filter_ref(resultBlast, dico_cov_id, strain_faa, \
 	query_faa, query_list):
+	# do the blast filter only with the first allele of each query
 
 
 	blastfile = open(resultBlast,'r')
@@ -434,6 +457,8 @@ def blast_filter_ref(resultBlast, dico_cov_id, strain_faa, \
 
 def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 	dico_result, query_list) :
+	# select the allele number with a second blast analysis if '--noDrift' option \
+	# is given
 
 	query_len = fasta_length(all_query_seq)
 
@@ -497,10 +522,11 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 
 			break	
 
-	os.system("rm " + queries_fasta + " " + prokkaID_fasta + " " + resultBlast)	
+	#os.system("rm " + queries_fasta + " " + prokkaID_fasta + " " + resultBlast)	
 
 
 def fasta_length(fasta) :
+	# return a dictionnary with the sequence and their length
 
 	dico_len = {}
 
@@ -518,6 +544,7 @@ def fasta_length(fasta) :
 
 
 def findType(query_len, query_id):
+	# Find a new allele number
 
 	query_without_typeNumber = query_id.split("_")[0]
 
@@ -529,6 +556,7 @@ def findType(query_len, query_id):
 
 
 def addSeq(prokkaID, strain_faa, query_list, newQuery):  
+	# add a new allele in the query fasta file 	
 
 	FastaFile = open(strain_faa, 'rU')
 
@@ -549,11 +577,20 @@ def addSeq(prokkaID, strain_faa, query_list, newQuery):
 			break
 
 	fasta = open(fasta_to_append, 'a')
-	fasta.write("\n>" + newQuery + "\n" + str(seq) + "\n")
+	#fasta.write("\n>" + newQuery + "\n" + str(seq) + "\n")
+	fasta.write("\n>" + newQuery + "\n")	
+	i = 0
+	for nucl in str(seq) :
+		fasta.write(nucl)
+		i+=1
+		if i == 70 :
+			fasta.write("\n")
+			i = 0	
 	fasta.close()
 
 
 def matrix_maker(matrice_filename, dico_matrice):
+	# write the matrix file
 
 	if not os.path.exists(matrice_filename) :
 		matrice=open(matrice_filename, 'w')
@@ -580,6 +617,7 @@ def matrix_maker(matrice_filename, dico_matrice):
 
 
 def queries_alignment_and_phylogeny(combin_fasta, seqType, nbThreads, bootstrap):
+	# do the alignement and phylogeny of queries
 
 	alignment_file = "queries_alignment.fasta"
 	os.system("clustalo -i " + combin_fasta + " --threads=" + nbThreads + " > " + alignment_file)
@@ -608,6 +646,7 @@ def queries_alignment_and_phylogeny(combin_fasta, seqType, nbThreads, bootstrap)
 
 
 def fastaFiles_merge_simple(query, output_fasta_combin): 
+	# merge several fasta in a uniq fasta file
 
 	fastas = open(query,'r')
 	lines = fastas.readlines()
@@ -616,12 +655,17 @@ def fastaFiles_merge_simple(query, output_fasta_combin):
 	liste_fasta = []
 
 	for line in lines :
-		liste_fasta.append(line.rstrip())
+		liste_fasta.append(line.rstrip())	
 
-	os.system("cat " + ' '.join(liste_fasta) + ' > ' + output_fasta_combin)	
+	with open(output_fasta_combin, 'w') as w_file:
+		for filen in liste_fasta:
+			with open(filen, 'rU') as o_file:
+				seq_records = SeqIO.parse(o_file, 'fasta')
+				SeqIO.write(seq_records, w_file, 'fasta')
 
 
 def combin_references(fasta_combines, reference_combin):
+	# merge the allele 1 of each query in a fasta file
 
 	record_dict = SeqIO.to_dict(SeqIO.parse(fasta_combines, "fasta"))
 	reference_combin_file = open(reference_combin, 'w')
@@ -631,7 +675,16 @@ def combin_references(fasta_combines, reference_combin):
 		if record_dict[record].id.split('_')[-1] == '1':
 			id = '_'.join(record_dict[record].id.split('_')[0:-1])
 			sequence = str(record_dict[record].seq)
-			reference_combin_file.write('>' + id + '\n' + sequence + '\n')
+			reference_combin_file.write('>' + id + '\n' )
+			i = 0
+			for nucl in sequence :
+				reference_combin_file.write(nucl)
+				i += 1
+				if i == 70 :
+					reference_combin_file.write('\n')
+					i = 0
+
+			reference_combin_file.write('\n')				
 
 	reference_combin_file.close()
 
@@ -640,6 +693,7 @@ def combin_references(fasta_combines, reference_combin):
 header query format :
 >geneid_X 
 --> avec X incrementation du numéro du type
+nom du fasta obligatoirement geneid 
 '''
 
 #main function	
@@ -654,11 +708,13 @@ def main():
 
 	Arguments=parser.parse_args()
 
+	print "--> Select genbank not already analyzed"
 	# récupérer tous les genbanks qui n'ont pas déjà été analysés
 	if Arguments.Repertoire[-1]!='/' : 
 		Arguments.Repertoire = Arguments.Repertoire + '/'
 
 	# check external tools
+	print "--> Check externals tools in PATH"
 	program_needed = ["blastall", "pairdist", "clustalo", "sumtrees.py"]	
 	check_extern_tools(program_needed)
 
@@ -677,6 +733,7 @@ def main():
 	dico_souche= {}
 	genome_a_ajouter=open(Arguments.liste, 'a')
 
+	print "--> Blast analysis for each genome"
 	for element in genbank_file_to_analyse:
 
 		#genbank to faa or fna
@@ -712,7 +769,6 @@ def main():
 		
 
 		if not Arguments.noDrift :
-
 			dico_souche[id_strain] = blast_filter(resultBlast, dico_query, \
 				strain, fasta_combines, Arguments.query)
 
@@ -735,12 +791,12 @@ def main():
 		genome_a_ajouter.write(id_strain + '\n')
 		os.system("rm " + strain)
 
-
 	matrix_maker(Arguments.matrice, dico_souche)
 		
 	genome_a_ajouter.close()
 
 	if Arguments.withPhylo :
+		print "--> Queries alignment and phylogeny analysis"
 		#phylogénie des queries
 		fastaFiles_merge_simple(Arguments.query, "new_combin_queries.fasta")	
 
@@ -748,8 +804,9 @@ def main():
 	
 
 	#nettoyer fichiers temporaires	
+	print "--> Remove temporary files"
 	os.system("rm fasta_combines.txt formatdb.log *.pin *.phr *.psq new_combin_queries.fasta pairdist_bootstrap.log \
-		outtree outfile njcommand neighbor.log log infile protcommand")
+		outtree outfile njcommand neighbor.log log infile protcommand *.nsq *.nin *.nhr reference_combines.fasta > /dev/null 2>&1")
 
 	if not Arguments.keepBlastAln :
 		os.system("rm *_blast.tsv")
