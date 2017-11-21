@@ -281,6 +281,8 @@ def fastaFiles_merge(query, output_fasta_combin, cov, id):
 	for line in lines :
 		line = line.rstrip()
 		fasta_path = line.split('\t')[0]
+		if len(fasta_path) == 0 :
+			continue
 		liste_fasta.append(fasta_path)
 
 		tmp = open(fasta_path,'r')
@@ -386,7 +388,7 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 			continue
 
 		#filtre prc longueur
-		if(int(line[3])/query_len[query_id]*100 < pourcentage_longueur):
+		if(float(line[3])/float(query_len[query_id])*100.0 < pourcentage_longueur):
 			continue	
 
 		if(float(line[2])!=100.00):
@@ -411,7 +413,6 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 
 		if element not in dico_result :
 			dico_result[element] = '0'
-
 
 	return dico_result		
 
@@ -522,7 +523,7 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 
 			break	
 
-	#os.system("rm " + queries_fasta + " " + prokkaID_fasta + " " + resultBlast)	
+	os.system("rm " + queries_fasta + " " + prokkaID_fasta + " " + resultBlast)	
 
 
 def fasta_length(fasta) :
@@ -789,7 +790,7 @@ def main():
 			dico_souche[id_strain] = dico_result
 
 		genome_a_ajouter.write(id_strain + '\n')
-		os.system("rm " + strain)
+		#os.system("rm " + strain)
 
 	matrix_maker(Arguments.matrice, dico_souche)
 		
