@@ -86,7 +86,7 @@ class CDS_nucl(object) :
 		self.complement = False
 		self.sequence = ""
 
-
+	'''	
 	def extract_seq(self, sequence):
 		
 		if (self.pos_start < self.pos_end) and self.complement == False :
@@ -102,7 +102,16 @@ class CDS_nucl(object) :
 		elif (self.pos_start > self.pos_end) and self.complement == True :	
 			self.sequence = ''.join(reversed(sequence[self.pos_start-1:self.pos_end]))
 			self.sequence_complement()
-								
+	'''
+	def extract_seq(self, sequence):
+		
+		if self.complement == False :
+			self.sequence = sequence[self.pos_start-1:self.pos_end]
+
+		else :
+			self.sequence = ''.join(reversed(sequence[self.pos_start-1:self.pos_end]))
+			self.sequence_complement()
+		
 
 	def sequence_complement(self):
 
@@ -389,7 +398,7 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 
 		#filtre prc longueur
 		if(float(line[3])/float(query_len[query_id])*100.0 < pourcentage_longueur):
-			continue	
+			continue
 
 		if(float(line[2])!=100.00):
 			add_seq = True
@@ -447,7 +456,7 @@ def blast_filter_ref(resultBlast, dico_cov_id, strain_faa, \
 			continue
 
 		#filtre prc longueur
-		if(int(line[3])/query_len[query_id_withoutNb]*100 < pourcentage_longueur):
+		if(float(line[3])/float(query_len[query_id_withoutNb])*100.0 < pourcentage_longueur):
 			continue	
 
 		else :
@@ -790,7 +799,7 @@ def main():
 			dico_souche[id_strain] = dico_result
 
 		genome_a_ajouter.write(id_strain + '\n')
-		#os.system("rm " + strain)
+		os.system("rm " + strain)
 
 	matrix_maker(Arguments.matrice, dico_souche)
 		
