@@ -666,9 +666,9 @@ def fastaFiles_merge_simple(query, output_fasta_combin):
 
 	for line in lines :
 		liste_fasta.append(line.rstrip())	
-
 	with open(output_fasta_combin, 'w') as w_file:
 		for filen in liste_fasta:
+			filen = filen.split('\t')[0]
 			with open(filen, 'rU') as o_file:
 				seq_records = SeqIO.parse(o_file, 'fasta')
 				SeqIO.write(seq_records, w_file, 'fasta')
