@@ -381,7 +381,10 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 				newType = findType(query_len, last_queryId)
 				newQuery = last_queryId + '_' + str(newType)
 				addSeq(prokkaID, strain_faa, query_list, newQuery)
-				dico_result[last_queryId] = str(newType)
+				if last_queryId in dico_result and dico_result[last_queryId] != '0' :
+					dico_result[last_queryId] = dico_result[last_queryId] + '-' + str(newType)
+				else :
+					dico_result[last_queryId] = str(newType)
 
 			last_queryId = query_id_withoutNb
 			add_seq = False
@@ -405,7 +408,10 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 			prokkaID = line[1]
 			
 		elif(float(line[2])==100.00):
-			dico_result[query_id.split('_')[0]] = query_id.split('_')[1] 
+			if query_id.split('_')[0] in dico_result and dico_result[query_id.split('_')[0]] != '0' :
+				dico_result[query_id.split('_')[0]] = dico_result[query_id.split('_')[0]] + '-' + query_id.split('_')[1] 
+			else :
+				dico_result[query_id.split('_')[0]] = query_id.split('_')[1] 
 			Pass = True			
 
 	#Last loop
@@ -413,7 +419,10 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 		newType = findType(query_len, last_queryId)
 		newQuery = last_queryId + '_' + str(newType)
 		addSeq(prokkaID, strain_faa, query_list, newQuery)
-		dico_result[last_queryId] = str(newType)
+		if last_queryId in dico_result and dico_result[last_queryId] != '0' :
+			dico_result[last_queryId] = dico_result[last_queryId] + '-' + str(newType)
+		else :
+			dico_result[last_queryId] = str(newType)
 
 
 	for element in query_len :			
@@ -522,13 +531,19 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 		if line[0] == prokkaID :
 
 			if(float(line[2])==100.00) :
-				dico_result[line[1].split('_')[0]] = line[1].split('_')[1]
+				if line[1].split('_')[0] in dico_result and dico_result[line[1].split('_')[0]] != '0' :
+					dico_result[line[1].split('_')[0]] = dico_result[line[1].split('_')[0]] + '-' + line[1].split('_')[1]
+				else :	
+					dico_result[line[1].split('_')[0]] = line[1].split('_')[1]
 
 			else : 
 				newType = findType(query_len, line[1].split('_')[0])
 				newQuery = line[1].split('_')[0] + '_' + str(newType)
 				addSeq(prokkaID, strain_fasta, query_list, newQuery)
-				dico_result[query_id] = str(newType)	
+				if query_id in dico_result[query_id] and dico_result[query_id] != '0' :
+					dico_result[query_id] = dico_result[query_id] + '-' + str(newType)
+				else :
+					dico_result[query_id] = str(newType)	
 
 			break	
 
