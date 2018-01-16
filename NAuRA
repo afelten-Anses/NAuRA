@@ -10,7 +10,8 @@ from Bio import SeqIO
 
 __doc__="""
 
-@requires: blastall
+@requires: blast+ (https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+@requires: Fastx-toolkit (http://hannonlab.cshl.edu/fastx_toolkit/download.html)
 @requires: pairdist (https://github.com/frederic-mahe/pairdist)
 @requires: Phylip (http://evolution.genetics.washington.edu/phylip.html) 
 @requires: clustalw (http://www.clustal.org)
@@ -259,7 +260,7 @@ def genbank_to_fna(genbank, fasta):
 			is_seq = True
 			sequence = ""
 
-		elif "//" in line and len(list_CDS_per_contig) > 0:	
+		elif "//" in line and len(list_CDS_per_contig) > 0 and len(sequence) > 0:	
 			is_seq = False
 			for CDS_object in list_CDS_per_contig :
 				CDS_object.extract_seq(sequence)
@@ -508,12 +509,12 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 	resultBlast = prokkaID + "blast_result.tmp"
 
 	if seqType == "NUCL" :
-		os.system("formatdb -i " + queries_fasta + " -p F")
+		os.system("makeblastdb -in " + queries_fasta + " -dbtype nucl")
 		cmd = "blastall -p blastn -d " + queries_fasta + " -i " + prokkaID_fasta + \
 		" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 	else:
-		os.system("formatdb -i " + queries_fasta + " -p T")
+		os.system("makeblastdb -in " + queries_fasta + " -dbtype prot")
 		cmd = "blastall -p blastp -d " + queries_fasta + " -i " + prokkaID_fasta + \
 		" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
@@ -777,16 +778,20 @@ def main():
 
 		#blast
 		if Arguments.nucl :
+			strain_tmp = id_strain + ".tmp"
+			genbank_to_fna(element, strain_tmp)
 			strain = id_strain + ".fna"
-			genbank_to_fna(element, strain)
-			os.system("formatdb -i " + strain + " -p F")
+			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
+			os.system("makeblastdb -in " + strain + " -dbtype nucl")
 			cmd = "blastall -p blastn -d " + strain + " -i " + fasta_combines + \
 			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 		else:
+			strain_tmp = id_strain + ".tmp"
+			genbank_to_faa(element, strain_tmp)
 			strain = id_strain + ".faa"	
-			genbank_to_faa(element, strain)
-			os.system("formatdb -i " + strain + " -p T")
+			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
+			os.system("makeblastdb -in " + strain + " -dbtype prot")
 			cmd = "blastall -p blastp -d " + strain + " -i " + fasta_combines + \
 			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
@@ -814,7 +819,7 @@ def main():
 			dico_souche[id_strain] = dico_result
 
 		genome_a_ajouter.write(id_strain + '\n')
-		os.system("rm " + strain)
+		os.system("rm " + strain + " " + strain_tmp)
 
 	matrix_maker(Arguments.matrice, dico_souche)
 		
@@ -830,7 +835,7 @@ def main():
 
 	#nettoyer fichiers temporaires	
 	print "--> Remove temporary files"
-	os.system("rm fasta_combines.txt formatdb.log *.pin *.phr *.psq new_combin_queries.fasta pairdist_bootstrap.log \
+	os.system("rm fasta_combines.txt *.pin *.phr *.psq new_combin_queries.fasta pairdist_bootstrap.log \
 		outtree outfile njcommand neighbor.log log infile protcommand *.nsq *.nin *.nhr reference_combines.fasta > /dev/null 2>&1")
 
 	if not Arguments.keepBlastAln :
