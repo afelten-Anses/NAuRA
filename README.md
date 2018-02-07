@@ -13,14 +13,11 @@ HTML and PDF technical documentation are available in the 'docs/' directory.
 NAuRA workflow
 ==================
 
-This workflow called iVARCall2 for "independant variant calling 2" aims to perform the variant calling analysis from Illumina paired-end reads based on the GATK HaplotypeCaller algorithm. Each sample are processing independently and a g.vcf file is produce for each of them. This allow to combin several iVARCall2 results if the same reference genome is used. 
+This workflow called NAuRA for "Nice automated research of variants" aims to ... 
 
 The differents workflow steps and scripts are presented below :
 
 ![](workflow.jpg?raw=true "NAuRA workflow")
-
-- A driving script called 'iVARCall2' invokes 'BAMmaker', 'iVCFmaker', 'iVCFmerge', 'iVCFilter', 'VCFtoMATRIX', 'VCFtoFASTA', VCFtoPseudoGenome' and 'iReportMaker2' successively. 
-
 
 
 
@@ -50,6 +47,7 @@ NAuRA has been developped with python 2.7 (tested with 2.7.12).
 
 ## External dependencies
 
+*[Biopython](http://biopython.org/wiki/Download) tested with 1.70
 * [blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - tested with 2.2.31+
 * [Fastx-toolkit](http://hannonlab.cshl.edu/fastx_toolkit/download.html) - tested with 0.0.14
 * [pairdist](https://github.com/frederic-mahe/pairdist) - tested with 1.0	
@@ -82,13 +80,16 @@ Parameters of each scripts are available with one of its 3 options :
 * --nucl : Specify query are nucleic sequences
 * --withPhylo : Do the phylogeny analysis of new alleles
 * --keepBlastAln : Keep blast results for each genome
-* --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if query sequences are close)
+* --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if queries sequences are close)
 
 
 Ouputs
 ======
 
 
-
+--> important : ne pas mélanger prot et nucl
+--> exemple entrée query tsv
+--> exemple fasta query avec nouveau allèle
+--> exemple matrice
 
 
