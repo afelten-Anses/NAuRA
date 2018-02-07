@@ -47,7 +47,7 @@ NAuRA has been developped with python 2.7 (tested with 2.7.12).
 
 ## External dependencies
 
-*[Biopython](http://biopython.org/wiki/Download) tested with 1.70
+* [Biopython](http://biopython.org/wiki/Download) tested with 1.70
 * [blast+](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - tested with 2.2.31+
 * [Fastx-toolkit](http://hannonlab.cshl.edu/fastx_toolkit/download.html) - tested with 0.0.14
 * [pairdist](https://github.com/frederic-mahe/pairdist) - tested with 1.0	
