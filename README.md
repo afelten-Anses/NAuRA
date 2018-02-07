@@ -68,25 +68,21 @@ Parameters of each scripts are available with one of its 3 options :
 
 ## NAuRA parameters
 
-* -a : adaptaters FASTA file (REQUIRED)
-* -TRIMJAR : Trimmomatic jar path
-* -GATKJAR : GenomeAnalysisTK jar path
-* -PICARDJAR : picard-tools jar path
-* -o : output prefix (default:output)
-* -q : minimum phred score per base for trimming (default:30)
-* -l : minimum read length for trimming (default:50)
-* -PL : sequencing plateform for RG line (default:UNKNOWN)
-* -PU : sequencer ID for RG line (default:UNKNOWN)
-* -LB : sequencing library (default:UNKNOWN)
-* -T : maximum number of threads to use (default:1)
-* -m : maximum memory to use in Mb (default:4000)
+* -i : Folder with GBK files, theses files must be in the format 'GENOMEid.gbk' (REQUIRED)
+* -m : Matrix file if exists (default:matrix.tsv)
+* -q : Text file with query Fasta path, one per line (REQUIRED). Optional, set cov and id percent separated by tabulation. Add '_1' for each query. No supplementary '_' character. Each query file name must have the same name as the allele name.")
+* -l : Text file with the already analyzed genomes list (default:list.txt)
+* -pl : Minimum percent of alignment length (default:80)
+* -ph : Minimum percent of alignment similarity (default:80)
+* -T : Number of threads to use (default:2)
+* -b : Number of bootstrap, only with --withPhylo option (default:1)
 
 ## NAuRA options
 
-* --removeDuplicates : remove duplicates reads (recommended)
-* --indelRealigner : local realignment around indels (recommended)
-* --removeTmpFiles : remove temporary files (recommended)
-* --onlyVCF : stop process after making independent g.vcf files
+* --nucl : Specify query are nucleic sequences
+* --withPhylo : Do the phylogeny analysis of new alleles
+* --keepBlastAln : Keep blast results for each genome
+* --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if query sequences are close)
 
 
 Ouputs
