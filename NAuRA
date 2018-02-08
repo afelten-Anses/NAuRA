@@ -41,11 +41,11 @@ def get_parser():
 						genomes list (default:list.txt)')
 	
 	parser.add_argument('-pl', action="store", dest='pourcentage_longueur', 
-						type=int, default=80, help='Minimum percent of alignment length \
+						type=int, default=80, help='Minimum percent of alignment coverage \
 						(default:80)')
 	
 	parser.add_argument('-ph', action="store", dest='pourcentage_homologie', 
-						type=int, default=80, help='Minimum percent of the alignment similarity \
+						type=int, default=80, help='Minimum percent of the alignment identity \
 						(default:80)')
 
 	parser.add_argument('-T', action="store", dest='nbThreads', 

@@ -26,11 +26,11 @@ Quick Start
 
 ## Usage (Linux/Mac OS X)
 
-If it's necessary, make all scripts excecutable :
+If it's necessary, make NAuRA excecutable :
 
-	chmod +x src/*
+	chmod +x NAuRA
 
-Add the scripts to your bashrc (/home/username/.bashrc) :
+Add the scripts to your bashrc or bash_profile :
 
 	export PATH=$PATH:NAuRA/
 	
@@ -70,8 +70,8 @@ Parameters of each scripts are available with one of its 3 options :
 * -m : Matrix file if exists (default:matrix.tsv)
 * -q : Text file with query Fasta path, one per line (REQUIRED). Optional, set cov and id percent separated by tabulation. Add '_1' for each query. No supplementary '_' character. Each query file name must have the same name as the allele name.")
 * -l : Text file with the already analyzed genomes list (default:list.txt)
-* -pl : Minimum percent of alignment length (default:80)
-* -ph : Minimum percent of alignment similarity (default:80)
+* -pl : Minimum percent of alignment coverage (default:80)
+* -ph : Minimum percent of alignment identity (default:80)
 * -T : Number of threads to use (default:2)
 * -b : Number of bootstrap, only with --withPhylo option (default:1)
 
@@ -83,11 +83,22 @@ Parameters of each scripts are available with one of its 3 options :
 * --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if queries sequences are close)
 
 ## Queries file
+
+NAuRA need a queries file where is specified the path of all queries fasta files. Queries must be in a separated fasta file and the query header must end with "_1" (see example below). This allows NAuRA to detect the intial query and to increment the allele number.
+
+	>queryA_1
+	SIPFNANWLNQQYAEIIQAILFDVVGYEVKPHFITTEELANYSNNETATPKETTKPST
+	ETTEDNHVLGREQFNAHNTFDTFVIGPGNRFPHAASLAVAEAPAKAYNPLFIYGGVGL
+	GKTHLMHAIGHHVLDNNPDAKVIYTSSEKFTNEFIKSIRDNEGEAFRERYRNIDVLLI
+
 	
-	/data/myProject/query1.fasta
-	/data/myProject/query2.fasta	90	90
-	/data/myProject/query3.fasta	95	
-	/data/myProject/query4.fasta		70
+Optionally, a specific minimum of coverage (column 1) and minimum of identity (column 2) can be setting for each query. If no value are is specified, values given by '-pl' and '-ph' arguments are setting by default. Values must be separated by a tab character.
+
+	/data/myProject/queryA.fasta
+	/data/myProject/queryB.fasta	90	90
+	/data/myProject/queryC.fasta	95	
+	/data/myProject/queryD.fasta		70
+
 
 Ouputs
 ======
