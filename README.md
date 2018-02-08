@@ -82,6 +82,12 @@ Parameters of each scripts are available with one of its 3 options :
 * --keepBlastAln : Keep blast results for each genome
 * --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if queries sequences are close)
 
+## Queries file
+	
+	/data/myProject/query1.fasta
+	/data/myProject/query2.fasta	90	90
+	/data/myProject/query3.fasta	95	
+	/data/myProject/query4.fasta		70
 
 Ouputs
 ======
