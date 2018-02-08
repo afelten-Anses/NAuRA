@@ -112,9 +112,9 @@ NAuRA make a matrix file in TSV (tabular separator value) format. For each analy
 * '1' if the query found is the reference allele ;
 * the allele number otherwise.
 
+NAuRA stores new alleles in each query fasta file given by the queries file. It's possible to rerun NAuRA on a new dataset of genomes with all of theses alleles. 
 
---> important : ne pas mélanger prot et nucl
---> exemple fasta query avec nouveau allèle
---> exemple matrice
+If the '--withPhylo' option is given, 
+
 
 
