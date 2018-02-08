@@ -82,6 +82,8 @@ Parameters of each scripts are available with one of its 3 options :
 * --keepBlastAln : Keep blast results for each genome
 * --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if queries sequences are close)
 
+### Important
+
 ## Queries file
 
 NAuRA need a queries file where is specified the path of all queries fasta files. Queries must be in a separated fasta file and the query header must end with "_1" (see example below). This allows NAuRA to detect the intial query and to increment the allele number.
@@ -92,7 +94,7 @@ NAuRA need a queries file where is specified the path of all queries fasta files
 	GKTHLMHAIGHHVLDNNPDAKVIYTSSEKFTNEFIKSIRDNEGEAFRERYRNIDVLLI
 
 	
-Optionally, a specific minimum of coverage (column 1) and minimum of identity (column 2) can be setting for each query. If no value are is specified, values given by '-pl' and '-ph' arguments are setting by default. Values must be separated by a tab character.
+Optionally, a specific minimum of coverage (column 1) and minimum of identity (column 2) can be setting for each query. If no value are is specified, values given by '-pl' and/or '-ph' arguments are setting by default. Values must be separated by a tab character.
 
 	/data/myProject/queryA.fasta
 	/data/myProject/queryB.fasta	90	90
@@ -105,7 +107,6 @@ Ouputs
 
 
 --> important : ne pas mélanger prot et nucl
---> exemple entrée query tsv
 --> exemple fasta query avec nouveau allèle
 --> exemple matrice
 
