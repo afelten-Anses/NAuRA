@@ -13,9 +13,11 @@ HTML and PDF technical documentation are available in the 'docs/' directory.
 NAuRA workflow
 ==================
 
-This workflow called NAuRA for "Nice automated research of variants" aims to ... 
+This workflow called NAuRA for "Nice automated research of variants" aims to detect genes or proteins based on a blast approach. If an alternative version of this gene/protein is detected, NAuRA extract its corresponding sequence and add this new version in the list of queries. Finally, NAuRA make a matrix where is specified which query and which allele is found for each genome.  
 
-The differents workflow steps and scripts are presented below :
+NAuRA give also the possibility to perform a phylogenetic analysis by using a neighbor joining approach based on allele sequences.
+
+The differents steps of the workflow are presented below :
 
 ![](workflow.jpg?raw=true "NAuRA workflow")
 
