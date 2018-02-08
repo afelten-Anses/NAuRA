@@ -57,7 +57,7 @@ def get_parser():
 						(default:1)')
 
 	parser.add_argument('--nucl', dest='nucl', action='store_true', 
-						help='Specify query are nucleic sequences', default=False)
+						help='Specify queries are nucleic sequences', default=False)
 
 	parser.add_argument('--withPhylo', dest='withPhylo', action='store_true', 
 						help='Do the phylogeny analysis of new alleles', default=False)

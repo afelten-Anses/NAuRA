@@ -77,12 +77,14 @@ Parameters of each scripts are available with one of its 3 options :
 
 ## NAuRA options
 
-* --nucl : Specify query are nucleic sequences
+* --nucl : Specify queries are nucleic sequences
 * --withPhylo : Do the phylogeny analysis of new alleles
 * --keepBlastAln : Keep blast results for each genome
 * --noDrift : Similarity and coverage always tested with default allele (take longer, recommended if queries sequences are close)
 
 ### Important
+
+By default, NAuRA need protein sequences as queries. If Queries are nucleic sequences, the '--nucl' option must be set. NAuRA can't work with both protein and nucleic sequences simultaneously.  
 
 ## Queries file
 
@@ -94,7 +96,7 @@ NAuRA need a queries file where is specified the path of all queries fasta files
 	GKTHLMHAIGHHVLDNNPDAKVIYTSSEKFTNEFIKSIRDNEGEAFRERYRNIDVLLI
 
 	
-Optionally, a specific minimum of coverage (column 1) and minimum of identity (column 2) can be setting for each query. If no value are is specified, values given by '-pl' and/or '-ph' arguments are setting by default. Values must be separated by a tab character.
+Optionally, a specific minimum of coverage (column 1) and/or minimum of identity (column 2) can be setting for each query. If no value are is specified, values given by '-pl' and/or '-ph' arguments are setting by default. Values must be separated by a tab character.
 
 	/data/myProject/queryA.fasta
 	/data/myProject/queryB.fasta	90	90
@@ -104,6 +106,11 @@ Optionally, a specific minimum of coverage (column 1) and minimum of identity (c
 
 Ouputs
 ======
+
+NAuRA make a matrix file in TSV (tabular separator value) format. For each analyzed genome and each query, a value is associated :
+* '0' if the query isn't found for this genome ;
+* '1' if the query found is the reference allele ;
+* the allele number otherwise.
 
 
 --> important : ne pas mélanger prot et nucl
