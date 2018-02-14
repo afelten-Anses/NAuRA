@@ -124,4 +124,10 @@ If the '--withPhylo' option is given, NAuRA makes additional output files :
 * 'queries_alignment.tree' is the consensus tree in newick format obtained by sumtree.
 
 
+Test 
+====
 
+You can test NAuRA with the command lines :
+
+	cd test
+	NAuRA -i genomes -q list_queries.txt -T 1 --withPhylo --keepBlastAln
