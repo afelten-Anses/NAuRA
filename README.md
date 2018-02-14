@@ -116,7 +116,12 @@ NAuRA make a matrix file in TSV (tabular separator value) format. For each analy
 
 NAuRA stores new alleles in each query fasta file given by the queries file. It's possible to rerun NAuRA on a new dataset of genomes with all of theses alleles. 
 
-If the '--withPhylo' option is given, 
+It's possible to keep the filtered blast outputs file with the '--keepBlastAln' option (one blast file per genome).
+
+If the '--withPhylo' option is given, NAuRA makes additional output files :
+* 'queries_alignment.fasta' is a fasta file where all queries are aligned by clustalo ;
+* 'queries_alignment.tree' is a newick file with all boostrap obtained by pairdist ;
+* 'queries_alignment.tree' is the consensus tree in newick format obtained by sumtree.
 
 
 
