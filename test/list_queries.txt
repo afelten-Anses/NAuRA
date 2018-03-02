@@ -1,0 +1,3 @@
+queries/sei.fasta
+queries/sek.fasta	90	85
+queries/seq.fasta		87
