@@ -48,9 +48,9 @@ def get_parser():
 						type=str, default='2', help='Number of threads to use\
 						(default:2)')
 
-	parser.add_argument('-T', action="store", dest='TpT', 
-						type=str, default='2', help='Number of threads to use per job\
-						(default:2)')
+	parser.add_argument('-t', action="store", dest='TpT', 
+						type=str, default='1', help='Number of threads to use per job\
+						(default:1)')
 
 	parser.add_argument('-b', action="store", dest='BOOTSTRAP',
 						type=int, default=1 , help='bootstrap')
@@ -78,7 +78,7 @@ def run_bash_jobs(NAuRA_cmd, mv_cmd) :
 
 	os.system("chmod +x NAuRA_sim.sh")
 	os.system("./NAuRA_sim.sh")
-	os.remove(NAuRA_sim.sh)
+	os.remove("NAuRA_sim.sh")
 
 
 #main function	
@@ -100,7 +100,7 @@ def main():
 	
 	Arguments=parser.parse_args()
 
-	if Arguments.TpT > Arguments.nbThreads :
+	if int(Arguments.TpT) > int(Arguments.nbThreads) :
 		Arguments.TpT = Arguments.nbThreads
 
 	query_file = open(Arguments.QUERY,'r')
@@ -145,8 +145,8 @@ def main():
 
 		# lancer Naura
 
-		cmd = "NAuRA -i " + Arguments.GENOMES + " -q " + query_sim + " --withPhylo " + " -T " + Arguments.TpT \
-		+ ' -b ' + str(Arguments.BOOTSTRAP + " -o " + simId + " -l " + simId + "_list.txt -m " + simId + "_matrix.tsv ")
+		cmd = "NAuRA -i " + Arguments.GENOMES + " -q " + query_sim + " --withPhylo " + " -T " + str(Arguments.TpT) \
+		+ ' -b ' + str(Arguments.BOOTSTRAP) + " -o " + str(simId) + " -l " + str(simId) + "_list.txt -m " + str(simId) + "_matrix.tsv "
 		if Arguments.NUCL : 
 			cmd = cmd + " --nucl "
 		if Arguments.NODRIFT : 
@@ -160,15 +160,15 @@ def main():
 		mv_cmd.append("mv " + simId + "_queries_alignment.fasta " + simId + "/.")
 		mv_cmd.append("mv " + simId + "_queries_alignment.tree " + simId + "/.")
 
-		Nb_thread_use += Arguments.TpT
+		Nb_thread_use += int(Arguments.TpT)
 		flag = True
 
-		if(Nb_thread_use + Arguments.TpT >= Arguments.nbThreads) :
+		if(Nb_thread_use + int(Arguments.TpT) >= int(Arguments.nbThreads)) :
 
 			run_bash_jobs(NAuRA_cmd, mv_cmd)
 			Nb_thread_use = 0
 			mv_cmd = []
-			NAuRA_cmd - []
+			NAuRA_cmd = []
 			flag = False
 
 	if flag :
