@@ -1,0 +1,180 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-1 -*-
+import os, sys
+import argparse
+import random
+from shutil import copyfile
+
+
+
+def get_parser():
+	"""
+	Parse arguments
+	@return: arguments list
+	@rtype: parser object
+	"""
+
+	parser = argparse.ArgumentParser(description='run reads analysis, variant analysis, assembly and annotation \
+		from raw reads and add outputs in the GAMeR database')
+
+	parser.add_argument('-minCov', action="store", dest='MINCOV',
+						type=int, default=80, help='min coverage (default=80)')
+
+	parser.add_argument('-maxCov', action="store", dest='MAXCOV',
+						type=int, default=100, help='max coverage (default=100)')
+
+	parser.add_argument('-minId', action="store", dest='MINID',
+						type=int, default=80, help='min identity (default=80)')
+
+	parser.add_argument('-maxId', action="store", dest='MAXID',
+						type=int, default=100, help='max identity (default=100)')
+
+	parser.add_argument('-i', action="store", dest='ITERATION',
+						type=int, default=1 , help='iteration')
+
+	parser.add_argument('-q', action="store", dest='QUERY',
+						type=str, required=True, help='Query path (REQUIRED)')	
+
+	parser.add_argument('-g', action="store", dest='GENOMES',
+						type=str, required=True, help='genomes directory (REQUIRED)')
+
+	parser.add_argument('--nucl', dest='NUCL', action='store_true', help='nucl')
+
+
+	parser.add_argument('--noDrift', dest='NODRIFT', action='store_true', help='noDrift')
+
+
+	parser.add_argument('-T', action="store", dest='nbThreads', 
+						type=str, default='2', help='Number of threads to use\
+						(default:2)')
+
+	parser.add_argument('-T', action="store", dest='TpT', 
+						type=str, default='2', help='Number of threads to use per job\
+						(default:2)')
+
+	parser.add_argument('-b', action="store", dest='BOOTSTRAP',
+						type=int, default=1 , help='bootstrap')
+
+
+	return parser
+
+
+
+def run_bash_jobs(NAuRA_cmd, mv_cmd) :
+
+	bash_script = open("NAuRA_sim.sh",'w')
+
+	bash_script.write("#/bin/bash\n")
+
+	for cmd in NAuRA_cmd :
+		bash_script.write(cmd + '&\n')
+
+	bash_script.write("wait\n")	
+
+	for cmd in mv_cmd :
+		bash_script.write(cmd + '\n')
+
+	bash_script.close()
+
+	os.system("chmod +x NAuRA_sim.sh")
+	os.system("./NAuRA_sim.sh")
+	os.remove(NAuRA_sim.sh)
+
+
+#main function	
+def main():	
+
+
+	##########################################
+	#			Initialisation				 #
+	##########################################
+
+	
+	# Get arguments 
+	parser=get_parser()
+	
+	# Print parser.help if no arguments
+	if len(sys.argv)==1:
+		parser.print_help()
+		sys.exit(1)
+	
+	Arguments=parser.parse_args()
+
+	if Arguments.TpT > Arguments.nbThreads :
+		Arguments.TpT = Arguments.nbThreads
+
+	query_file = open(Arguments.QUERY,'r')
+	lines = query_file.readlines()
+	query_file.close()
+
+	Nb_thread_use = 0
+	mv_cmd = []
+	NAuRA_cmd = []
+	flag = False
+
+	for i in range(1,Arguments.ITERATION+1):
+
+		simId = "sim" + str(i)
+
+		os.makedirs(simId)
+
+		query_sim = simId + '/' + Arguments.QUERY
+		query_sim_outfile = open(query_sim,'w')
+
+		os.makedirs(simId + '/query')
+
+		# genere query filtre aléatoire
+
+		for line in lines :
+
+			if(len(line)>1):
+				
+				line = line.rstrip()
+				line = line.split('\t')[0]
+
+				query_name = line.split('/')[-1]
+				new_query_path = simId + '/query/' + query_name
+				copyfile(line, new_query_path)
+
+				coverage = random.randint(Arguments.MINCOV,Arguments.MAXCOV)
+				identity = random.randint(Arguments.MINID,Arguments.MAXID)
+
+				query_sim_outfile.write(new_query_path + '\t' + str(coverage) + '\t' + str(identity) + '\n')
+
+		query_sim_outfile.close()
+
+		# lancer Naura
+
+		cmd = "NAuRA -i " + Arguments.GENOMES + " -q " + query_sim + " --withPhylo " + " -T " + Arguments.TpT \
+		+ ' -b ' + str(Arguments.BOOTSTRAP + " -o " + simId + " -l " + simId + "_list.txt -m " + simId + "_matrix.tsv ")
+		if Arguments.NUCL : 
+			cmd = cmd + " --nucl "
+		if Arguments.NODRIFT : 
+			cmd = cmd + " --noDrift "	
+
+		NAuRA_cmd.append(cmd)	
+
+		mv_cmd.append("mv " + simId + "_list.txt " + simId + "/.")	
+		mv_cmd.append("mv " + simId + "_matrix.tsv " + simId + "/.")
+		mv_cmd.append("mv " + simId + "_queries_alignment.consensus.tree " + simId + "/.")
+		mv_cmd.append("mv " + simId + "_queries_alignment.fasta " + simId + "/.")
+		mv_cmd.append("mv " + simId + "_queries_alignment.tree " + simId + "/.")
+
+		Nb_thread_use += Arguments.TpT
+		flag = True
+
+		if(Nb_thread_use + Arguments.TpT >= Arguments.nbThreads) :
+
+			run_bash_jobs(NAuRA_cmd, mv_cmd)
+			Nb_thread_use = 0
+			mv_cmd = []
+			NAuRA_cmd - []
+			flag = False
+
+	if flag :
+		run_bash_jobs(NAuRA_cmd, mv_cmd)		
+
+
+if __name__ == "__main__":
+	main()	        		
+

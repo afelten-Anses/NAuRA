@@ -6,6 +6,7 @@ import argparse
 import glob
 import subprocess
 from Bio import SeqIO
+from os import chdir
 
 
 __doc__="""
@@ -28,6 +29,9 @@ def get_parser():
 						type=str, required=True, help="Folder with GBK files, theses files must be in the format \
 						'GENOMEid.gbk' (REQUIRED)")
 	
+	parser.add_argument('-O', action="store", dest='prefix', 
+						type=str, default="output", help="Output prefix (default:output)")
+
 	parser.add_argument('-m', action="store", dest='matrice', 
 						type=str, default='matrix.tsv', help='Matrix file if exists (default:matrix.tsv)')
 	
@@ -474,7 +478,7 @@ def blast_filter_ref(resultBlast, dico_cov_id, strain_faa, \
 
 
 def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
-	dico_result, query_list) :
+	dico_result, query_list, prefix) :
 	# select the allele number with a second blast analysis if '--noDrift' option \
 	# is given
 
@@ -482,7 +486,7 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 
 	all_query_seq_dict = SeqIO.to_dict(SeqIO.parse(all_query_seq, "fasta"))
 
-	queries_fasta = "queries_fasta.tmp"
+	queries_fasta = prefix + "_queries_fasta.tmp"
 	queries_fasta_file = open(queries_fasta,'w')
 
 	for record in all_query_seq_dict :
@@ -494,7 +498,7 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 
 
 	strain_dict = SeqIO.to_dict(SeqIO.parse(strain_fasta, "fasta"))
-	prokkaID_fasta = "prokkaID.fasta"
+	prokkaID_fasta = prefix + "_prokkaID.fasta"
 	prokkaID_fasta_file = open(prokkaID_fasta,'w')
 
 	for record in strain_dict :
@@ -504,16 +508,16 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 	prokkaID_fasta_file.close()
 
 	#blast
-	resultBlast = prokkaID + "blast_result.tmp"
+	resultBlast = prefix + '_' + prokkaID + "_blast_result.tmp"
 
 	if seqType == "NUCL" :
-		os.system("makeblastdb -in " + queries_fasta + " -dbtype nucl")
-		cmd = "blastall -p blastn -d " + queries_fasta + " -i " + prokkaID_fasta + \
+		os.system("makeblastdb -in " + queries_fasta + " -dbtype nucl -out " + prefix + "_db")
+		cmd = "blastall -p blastn -d " + prefix + "_db" + " -i " + prokkaID_fasta + \
 		" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 	else:
-		os.system("makeblastdb -in " + queries_fasta + " -dbtype prot")
-		cmd = "blastall -p blastp -d " + queries_fasta + " -i " + prokkaID_fasta + \
+		os.system("makeblastdb -in " + queries_fasta + " -dbtype prot -out " + prefix + "_db")
+		cmd = "blastall -p blastp -d " + prefix + "_db" + " -i " + prokkaID_fasta + \
 		" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 	os.system(cmd)
@@ -640,17 +644,21 @@ def matrix_maker(matrice_filename, dico_matrice):
 	matrice.close()
 
 
-def queries_alignment_and_phylogeny(combin_fasta, seqType, nbThreads, bootstrap):
+def queries_alignment_and_phylogeny(combin_fasta, seqType, nbThreads, bootstrap, prefix):
 	# do the alignement and phylogeny of queries
 
-	alignment_file = "queries_alignment.fasta"
+	alignment_file = prefix + "_queries_alignment.fasta"
 	os.system("clustalo -i " + combin_fasta + " --threads=" + nbThreads + " > " + alignment_file)
 
+	os.mkdir(prefix + "_pairdist") 
+	chdir(prefix + "_pairdist")
+
 	#phylogeny
-	command = "pairdist -b -i " + alignment_file + " -n " + bootstrap
+	command = "pairdist -b -i ../" + alignment_file + " -n " + bootstrap
 	if seqType == "PROT" :
 		command = command + " -p"
 	os.system(command)
+	chdir("..")
 	newick = '.'.join(alignment_file.split('.')[0:-1]) + ".tree"
 	os.system("mv " + alignment_file + ".tree " + newick)
 
@@ -663,10 +671,12 @@ def queries_alignment_and_phylogeny(combin_fasta, seqType, nbThreads, bootstrap)
 	#Best tree
 	command = "sumtrees.py -F newick --root-target-at-midpoint --summary-target=consensus \
 	--suppress-annotations --decimals=0 --percentages " + newick + \
-	" > queries_alignment.consensus.tree"
+	" > " + prefix + "_queries_alignment.consensus.tree"
 	os.system(command)
 
-	os.system("sed -i 's/\[&R\] //g' queries_alignment.consensus.tree")
+	os.system("sed -i 's/\[&R\] //g' " + prefix + "_queries_alignment.consensus.tree")
+
+	os.system("rm -rf " + prefix + "_pairdist")
 
 
 def fastaFiles_merge_simple(query, output_fasta_combin): 
@@ -732,6 +742,10 @@ def main():
 
 	Arguments=parser.parse_args()
 
+	if Arguments.liste == Arguments.matrice :
+		print "ERROR : matrice filename and list filename are the same !"
+		sys.exit()
+
 	print "--> Select genbank not already analyzed"
 	# récupérer tous les genbanks qui n'ont pas déjà été analysés
 	if Arguments.Repertoire[-1]!='/' : 
@@ -762,17 +776,17 @@ def main():
 
 		#genbank to faa or fna
 		id_strain = element.split('/')[-1].split('.')[0]
-		resultBlast = id_strain + "_blast.tsv"
+		resultBlast = Arguments.prefix + '_' + id_strain + "_blast.tsv"
 
-		fasta_combines = "fasta_combines.txt"
+		fasta_combines = Arguments.prefix + "_fasta_combines.txt"
 
 		#merge les query --> 1 fasta
 		dico_query = fastaFiles_merge(Arguments.query, fasta_combines, Arguments.pourcentage_longueur, \
 			Arguments.pourcentage_homologie)
 
 		if Arguments.noDrift :
-			combin_references(fasta_combines, "reference_combines.fasta")
-			fasta_combines = "reference_combines.fasta"
+			combin_references(fasta_combines, Arguments.prefix + "_reference_combines.fasta")
+			fasta_combines = Arguments.prefix + "_reference_combines.fasta"
 
 		#blast
 		if Arguments.nucl :
@@ -780,8 +794,8 @@ def main():
 			genbank_to_fna(element, strain_tmp)
 			strain = id_strain + ".fna"
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
-			os.system("makeblastdb -in " + strain + " -dbtype nucl")
-			cmd = "blastall -p blastn -d " + strain + " -i " + fasta_combines + \
+			os.system("makeblastdb -in " + strain + " -dbtype nucl -out " + Arguments.prefix + "_db")
+			cmd = "blastall -p blastn -d "  + Arguments.prefix + "_db" + " -i " + fasta_combines + \
 			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 		else:
@@ -789,8 +803,8 @@ def main():
 			genbank_to_faa(element, strain_tmp)
 			strain = id_strain + ".faa"	
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
-			os.system("makeblastdb -in " + strain + " -dbtype prot")
-			cmd = "blastall -p blastp -d " + strain + " -i " + fasta_combines + \
+			os.system("makeblastdb -in " + strain + " -dbtype prot -out " + Arguments.prefix + "_db")
+			cmd = "blastall -p blastp -d "  + Arguments.prefix + "_db" + " -i " + fasta_combines + \
 			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 		os.system(cmd)
@@ -811,8 +825,8 @@ def main():
 
 			for element in dico_blast_ref :
 
-				blast_2ndloop(strain, dico_blast_ref[element], element, "fasta_combines.txt", \
-					seqType, dico_result, Arguments.query)
+				blast_2ndloop(strain, dico_blast_ref[element], element, Arguments.prefix + "_fasta_combines.txt", \
+					seqType, dico_result, Arguments.query, Arguments.prefix)
 
 			dico_souche[id_strain] = dico_result
 
@@ -826,18 +840,25 @@ def main():
 	if Arguments.withPhylo :
 		print "--> Queries alignment and phylogeny analysis"
 		#phylogénie des queries
-		fastaFiles_merge_simple(Arguments.query, "new_combin_queries.fasta")	
+		fastaFiles_merge_simple(Arguments.query, Arguments.prefix + "_new_combin_queries.fasta")	
 
-		queries_alignment_and_phylogeny("new_combin_queries.fasta", seqType, Arguments.nbThreads, Arguments.bootstrap)
+		queries_alignment_and_phylogeny(Arguments.prefix + "_new_combin_queries.fasta", seqType, Arguments.nbThreads, Arguments.bootstrap, Arguments.prefix)
 	
 
 	#nettoyer fichiers temporaires	
 	print "--> Remove temporary files"
-	os.system("rm fasta_combines.txt *.pin *.phr *.psq new_combin_queries.fasta pairdist_bootstrap.log \
-		outtree outfile njcommand neighbor.log log infile protcommand *.nsq *.nin *.nhr reference_combines.fasta > /dev/null 2>&1")
+	file_to_delete = []
+	file_to_delete.append(Arguments.prefix + "_fasta_combines.txt")
+	file_to_delete.append(Arguments.prefix + "_db.*")
+	file_to_delete.append(Arguments.prefix + "_new_combin_queries.fasta")
+	file_to_delete.append(Arguments.prefix + "_new_combin_queries.fasta")
+
+	os.system("rm " + ' '.join(file_to_delete) + \
+	" pairdist_bootstrap.log \
+	outtree outfile njcommand neighbor.log log infile protcommand  *reference_combines.fasta > /dev/null 2>&1")
 
 	if not Arguments.keepBlastAln :
-		os.system("rm *_blast.tsv")
+		os.system("rm " + Arguments.prefix + "*_blast.tsv")
 
 
 if __name__ == "__main__":
