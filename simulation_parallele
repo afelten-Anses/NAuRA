@@ -3,9 +3,10 @@
 import os, sys
 import argparse
 import random
+from itertools import chain
 from shutil import copyfile
 
-
+#dependances : R - monophy package et optparse
 
 def get_parser():
 	"""
@@ -53,7 +54,7 @@ def get_parser():
 						(default:1)')
 
 	parser.add_argument('-b', action="store", dest='BOOTSTRAP',
-						type=int, default=1 , help='bootstrap')
+						type=int, default=1 , help='bootstrap (default:1)')
 
 
 	return parser
@@ -81,6 +82,297 @@ def run_bash_jobs(NAuRA_cmd, mv_cmd) :
 	os.remove("NAuRA_sim.sh")
 
 
+class gene(object) :
+
+	def __init__(self):
+
+		self.name = None
+		self.cov = 100
+		self.id = 100
+		self.nbAlleles = 1
+
+
+class node(object) :
+	"""
+	Create node object to stock the phylogeny tree
+	@param name : name of the genome
+	@type name : string
+	@param variants : list of var objects assigned to the genome 
+	@type variants : list
+	"""
+	
+	def __init__(self):
+		"""
+		Initialize the node class
+		@param fils : list of sons nodes objects
+		@type fils : list
+		@param pere : father node object 
+		@type pere : node object
+		@param val : genome name if the node is a leaf
+		@type val : string
+		"""
+		self.fils = []
+		self.pere = None
+		self.val = None
+
+	def nbFils(self):
+		"""
+		Compute number of sons
+		@return: number of sons
+		@rtype: integer
+		"""
+		return len(self.fils)
+
+	def isLeaf(self):
+		"""
+		Check if the node is a leaf
+		@return: True if the node is a leaf, False otherwise
+		@rtype: boolean
+		"""
+		if len(self.fils)==0:
+			return True
+		else:
+			return False	
+
+	def setPere(self, node):
+		"""
+		Set the father node of the current node object
+		@param node : father node object 
+		@type node : node object
+		"""
+		self.pere = node
+
+	def setFils(self, node):
+		"""
+		Add a new son to the current node object
+		@param node : son node object 
+		@type node : node object
+		"""
+		self.fils.append(node)
+
+	def setVal(self, val):
+		"""
+		Set the genome name of the node
+		@param val : genome name
+		@type val : string
+		"""
+		self.val = val	
+				
+	def listLeaf(self, liste):
+		"""
+		Give all genomes name of all sons node objects (recursive function)
+		@param liste : empty list which will contain genomes name
+		@type liste : list
+		"""
+		for node in self.fils :
+			if node.isLeaf() :
+				liste.append(node.val)
+			else :
+				node.listLeaf(liste)
+
+
+def createNode():
+	"""
+	Create a new empty node object
+	@return: empty node object
+	@rtype: node object
+	"""
+	root = node()
+	return root
+
+
+def readTree(file):
+	"""
+	Read a newick file and stock informations in a node object
+	@param file : newick file name
+	@type file : string
+	@return: root of the phylogeny tree
+	@rtype: node object
+	"""
+
+	with open(file, 'rb') as newickFile:
+
+		line = newickFile.readlines()[0]
+		firstNode = True
+		leafVal = ""
+
+		for character in line :
+
+			if character == '(': 
+			# start a new node
+				if firstNode :
+					# if it's the first node, create the root
+					root = createNode() 
+					node_actuel = root
+					firstNode = False
+					isLeaf = True
+
+				else :
+					new_node = createNode()	
+					
+					# make the relationship between son and father
+					new_node.setPere(node_actuel) 
+					node_actuel.setFils(new_node)
+
+					node_actuel = new_node
+					isLeaf = True
+
+			elif isLeaf and character != ':':
+				# start of a genome name
+				leafVal = leafVal + character
+
+			elif character == ':' and len(leafVal)>0:
+				# end of a branch, start of a genome name --> set it as a node value
+				isLeaf = False
+				leaf = createNode()
+				leaf.setVal(leafVal)
+
+				# make the relationship between son and father
+				leaf.setPere(node_actuel)
+				node_actuel.setFils(leaf)
+				
+				leafVal = ""
+
+			elif character == ',':
+				isLeaf = True	
+
+			elif character == ')':
+				# end of node, back to parent node
+				node_actuel = node_actuel.pere						
+
+
+		return root
+
+
+def allNodesLeafs(node, liste):
+	"""
+	For a given node, stock all its descendants name in a list (recursive function)
+	@param node : node object which descendants names will be found
+	@type node : node object 
+	@param liste : empty liste that will contain genomes name
+	@type liste : list
+	"""
+
+	if node.isLeaf() :
+		liste.append(node.val)
+
+	else:	
+
+		l = []
+		node.listLeaf(l)
+		liste.append(l)
+
+		for n in node.fils :
+			allNodesLeafs(n, liste)
+
+
+def MonoPhy(tree):
+
+	root = readTree(tree)	
+	genesNames = []
+	root.listLeaf(genesNames)
+
+	dicoMonoPhy = {}
+	dicoGenesAlleles = {}
+
+	for element in genesNames :
+
+		geneName = '_'.join(element.split('_')[0:-1])
+
+		if geneName not in dicoMonoPhy :
+			dicoMonoPhy[geneName] = False
+			dicoGenesAlleles[geneName] = 1
+
+		else :
+			dicoGenesAlleles[geneName] += 1	
+
+	#print dicoGenesAlleles	
+	#print dicoMonoPhy
+
+	browseTree(root, dicoMonoPhy, dicoGenesAlleles)
+
+	for element in dicoMonoPhy :
+		if not dicoMonoPhy[element] :
+			return False
+
+	return True
+
+
+def browseTree(nodeObj, dicoMonoPhy, dicoGenesAlleles):
+
+	genesNames = []
+	nodeObj.listLeaf(genesNames)
+
+	if len(genesNames) > 1 :
+
+		#print genesNames
+		MonoPhy_test(genesNames, dicoMonoPhy, dicoGenesAlleles)
+
+		for node in nodeObj.fils :
+			browseTree(node, dicoMonoPhy, dicoGenesAlleles)
+
+
+def MonoPhy_test(genesNames_list, dicoMonoPhy, dicoGenesAlleles):	
+	
+	first_geneName = '_'.join(genesNames_list[0].split('_')[0:-1])
+
+	nb_geneName = 0
+
+	for element in genesNames_list :
+
+		#print element
+
+		if '_'.join(element.split('_')[0:-1]) == first_geneName :
+			nb_geneName += 1
+
+		else :
+			return
+
+	#print nb_geneName		
+
+	if nb_geneName == dicoGenesAlleles[first_geneName] :
+		dicoMonoPhy[first_geneName] = True			
+
+
+def makeGenesObject(queries_filename):
+
+	GenesObject_list = []
+	
+	queries_file = open(queries_filename, 'r')
+	lines = queries_file.readlines()
+	queries_file.close()
+
+	for line in lines :
+		line = line.rstrip()
+		geneObj = gene()
+		geneObj.cov = line.split('\t')[1]
+		geneObj.id = line.split('\t')[2]
+
+		genePath = line.split('\t')[0]
+		geneObj.name = genePath.split('/')[-1].replace(".fasta",'')
+
+		geneObj.nbAlleles = nbSequence_in_fasta(genePath)
+
+		GenesObject_list.append(geneObj)
+
+	return GenesObject_list	
+
+
+def nbSequence_in_fasta(fasta_path):
+
+	fasta_file = open(fasta_path,'r')
+	lines = fasta_file.readlines()
+	fasta_file.close()
+
+	nbSequence = 0
+
+	for line in lines :	
+		if line[0] == '>' :
+			nbSequence += 1
+
+	return nbSequence		
+
+
 #main function	
 def main():	
 
@@ -102,7 +394,7 @@ def main():
 
 	if int(Arguments.TpT) > int(Arguments.nbThreads) :
 		Arguments.TpT = Arguments.nbThreads
-
+		
 	query_file = open(Arguments.QUERY,'r')
 	lines = query_file.readlines()
 	query_file.close()
@@ -118,7 +410,7 @@ def main():
 
 		os.makedirs(simId)
 
-		query_sim = simId + '/' + Arguments.QUERY
+		query_sim = simId + '/' + Arguments.QUERY.split('/')[-1]
 		query_sim_outfile = open(query_sim,'w')
 
 		os.makedirs(simId + '/query')
@@ -173,6 +465,60 @@ def main():
 
 	if flag :
 		run_bash_jobs(NAuRA_cmd, mv_cmd)		
+
+	
+	
+	sim_monophy_list = []
+	sim_not_monophy_list = []
+
+	for nSim in range(1,Arguments.ITERATION+1) :
+
+		tree = "sim" + str(nSim) + "/sim" + str(nSim) + "_queries_alignment.tree"	
+		is_monoPhy = MonoPhy(tree)
+
+		if is_monoPhy :
+			sim_monophy_list.append(nSim)
+
+		else :
+			sim_not_monophy_list.append(nSim)
+
+
+	print "monophyletic simulation : " + ''.join(str(sim_monophy_list))
+	print "no monophyletic simulation : " + ''.join(str(sim_not_monophy_list))			
+
+	if len(sim_monophy_list) == 0 :
+		print "ERROR : no monophyletic simulation"
+		#sys.exit(1)
+
+
+	dico_genesObj = {}	
+	dico_genesDistribution = {}
+	first_sim = True
+
+	#for test
+	sim_monophy_list = [1,2,3]
+
+
+	for sim_monophy in sim_monophy_list :
+
+		GenesObject_list = makeGenesObject("sim" + str(sim_monophy) + '/' + \
+			Arguments.QUERY.split('/')[-1])
+
+		dico_genesObj[sim_monophy] = GenesObject_list
+
+		if first_sim :
+			first_sim = False
+			for element in GenesObject_list :
+				dico_genesDistribution[element.name] = []
+
+		for element in GenesObject_list :		
+			dico_genesDistribution[element.name].append(element.nbAlleles)
+
+	print dico_genesDistribution			
+
+	
+
+
 
 
 if __name__ == "__main__":

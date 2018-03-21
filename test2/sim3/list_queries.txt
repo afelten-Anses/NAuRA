@@ -1,0 +1,3 @@
+sim3/query/sei.fasta	83	85
+sim3/query/sek.fasta	94	88
+sim3/query/seq.fasta	96	96
