@@ -790,18 +790,18 @@ def main():
 
 		#blast
 		if Arguments.nucl :
-			strain_tmp = id_strain + ".tmp"
+			strain_tmp = Arguments.prefix + '_' + id_strain + ".tmp"
 			genbank_to_fna(element, strain_tmp)
-			strain = id_strain + ".fna"
+			strain = Arguments.prefix + '_' + id_strain + ".fna"
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
 			os.system("makeblastdb -in " + strain + " -dbtype nucl -out " + Arguments.prefix + "_db")
 			cmd = "blastall -p blastn -d "  + Arguments.prefix + "_db" + " -i " + fasta_combines + \
 			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 		else:
-			strain_tmp = id_strain + ".tmp"
+			strain_tmp = Arguments.prefix + '_' + id_strain + ".tmp"
 			genbank_to_faa(element, strain_tmp)
-			strain = id_strain + ".faa"	
+			strain = Arguments.prefix + '_' + id_strain + ".faa"	
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
 			os.system("makeblastdb -in " + strain + " -dbtype prot -out " + Arguments.prefix + "_db")
 			cmd = "blastall -p blastp -d "  + Arguments.prefix + "_db" + " -i " + fasta_combines + \

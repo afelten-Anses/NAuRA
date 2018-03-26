@@ -5,8 +5,9 @@ import argparse
 import random
 from itertools import chain
 from shutil import copyfile
+from os import chdir
+#import numpy as np
 
-#dependances : R - monophy package et optparse
 
 def get_parser():
 	"""
@@ -55,6 +56,9 @@ def get_parser():
 
 	parser.add_argument('-b', action="store", dest='BOOTSTRAP',
 						type=int, default=1 , help='bootstrap (default:1)')
+
+	parser.add_argument('-B', action="store", dest='BOOTSTRAP_FINAL',
+						type=int, default=100 , help='bootstrap final for best parameters (default:100)')
 
 
 	return parser
@@ -286,6 +290,11 @@ def MonoPhy(tree):
 		else :
 			dicoGenesAlleles[geneName] += 1	
 
+	#pour gène ou nb allèle = 1 --> toujours monophylétique		
+	for geneName in dicoMonoPhy :
+		if dicoGenesAlleles[geneName] == 1 :
+			dicoMonoPhy[geneName] = True
+
 	#print dicoGenesAlleles	
 	#print dicoMonoPhy
 
@@ -331,7 +340,8 @@ def MonoPhy_test(genesNames_list, dicoMonoPhy, dicoGenesAlleles):
 	#print nb_geneName		
 
 	if nb_geneName == dicoGenesAlleles[first_geneName] :
-		dicoMonoPhy[first_geneName] = True			
+		dicoMonoPhy[first_geneName] = True		
+	
 
 
 def makeGenesObject(queries_filename):
@@ -373,6 +383,73 @@ def nbSequence_in_fasta(fasta_path):
 	return nbSequence		
 
 
+def quantiles(dico_genesDistribution):
+
+	dico_quantiles = {}
+
+	for gene in dico_genesDistribution :
+
+		dico_quantiles[gene] = []
+		dico_quantiles[gene].append(int(round(np.percentile(dico_genesDistribution[gene],25))))
+		dico_quantiles[gene].append(int(round(np.percentile(dico_genesDistribution[gene],75))))
+
+	return dico_quantiles	
+
+
+def bestSim_otherwise(dico_quantiles, dico_genesObj):
+
+	dico_simulation_score = {}
+
+	for simulation in dico_genesObj :
+
+		dico_simulation_score[simulation] = 0
+
+		for geneObj in dico_genesObj[simulation]:
+			if (geneObj.nbAlleles > dico_quantiles[geneObj.name][0]) and (geneObj.nbAlleles < dico_quantiles[geneObj.name][1]) :
+				dico_simulation_score[simulation] += 1
+
+	max_score = 0
+	for simulation in dico_simulation_score :
+		if	dico_simulation_score[simulation] >	max_score :
+			max_score = dico_simulation_score[simulation]
+
+	best_sim = []
+	for simulation in dico_simulation_score :
+		if 	dico_simulation_score[simulation] == max_score :
+			best_sim.append(simulation)
+
+	return random.choice(best_sim)			
+
+
+def queries_final_phylogeny(seqType, alignment_file, bootstrap, prefix):
+	#
+
+	chdir("FINAL")
+
+	#phylogeny
+	command = "pairdist -b -i " + alignment_file + " -n " + bootstrap
+	if seqType == "PROT" :
+		command = command + " -p"
+	os.system(command)
+	newick = '.'.join(alignment_file.split('.')[0:-1]) + ".tree"
+	os.system("mv " + alignment_file + ".tree " + newick)
+
+	#transform newick
+	os.system("sed -i '/begin trees;/d' " + newick)
+	os.system("sed -i '/end;/d' " + newick)
+	os.system("sed -i 's/tree pdtree[0-9]* = //g' " + newick)
+	os.system("sed -i 's/;;/;/g' " + newick)
+
+	#Best tree
+	command = "sumtrees.py -F newick --root-target-at-midpoint --summary-target=consensus \
+	--suppress-annotations --decimals=0 --percentages " + newick + \
+	" > " + prefix + "_queries_alignment.consensus.tree"
+	os.system(command)
+
+	os.system("sed -i 's/\[&R\] //g' " + prefix + "_queries_alignment.consensus.tree")
+
+
+
 #main function	
 def main():	
 
@@ -394,7 +471,7 @@ def main():
 
 	if int(Arguments.TpT) > int(Arguments.nbThreads) :
 		Arguments.TpT = Arguments.nbThreads
-		
+	#'''	
 	query_file = open(Arguments.QUERY,'r')
 	lines = query_file.readlines()
 	query_file.close()
@@ -403,7 +480,7 @@ def main():
 	mv_cmd = []
 	NAuRA_cmd = []
 	flag = False
-
+	
 	for i in range(1,Arguments.ITERATION+1):
 
 		simId = "sim" + str(i)
@@ -467,13 +544,13 @@ def main():
 		run_bash_jobs(NAuRA_cmd, mv_cmd)		
 
 	
-	
+	#'''
 	sim_monophy_list = []
 	sim_not_monophy_list = []
 
 	for nSim in range(1,Arguments.ITERATION+1) :
 
-		tree = "sim" + str(nSim) + "/sim" + str(nSim) + "_queries_alignment.tree"	
+		tree = "sim" + str(nSim) + "/sim" + str(nSim) + "_queries_alignment.consensus.tree"	
 		is_monoPhy = MonoPhy(tree)
 
 		if is_monoPhy :
@@ -488,7 +565,7 @@ def main():
 
 	if len(sim_monophy_list) == 0 :
 		print "ERROR : no monophyletic simulation"
-		#sys.exit(1)
+		sys.exit(1)
 
 
 	dico_genesObj = {}	
@@ -496,7 +573,7 @@ def main():
 	first_sim = True
 
 	#for test
-	sim_monophy_list = [1,2,3]
+	#sim_monophy_list = sim_not_monophy_list
 
 
 	for sim_monophy in sim_monophy_list :
@@ -514,13 +591,98 @@ def main():
 		for element in GenesObject_list :		
 			dico_genesDistribution[element.name].append(element.nbAlleles)
 
-	print dico_genesDistribution			
+	#print dico_genesDistribution			
 
+	dico_quantiles = quantiles(dico_genesDistribution)
+	#print dico_quantiles
+
+	best_sim = []
+	for simulation in dico_genesObj :
+		keep_sim = True	
+		for geneObj in dico_genesObj[simulation]:
+			if (geneObj.nbAlleles < dico_quantiles[geneObj.name][0]) or (geneObj.nbAlleles > dico_quantiles[geneObj.name][1]) :
+				keep_sim = False
+		if keep_sim :
+			best_sim.append(simulation)	
+
+	print "Best simulation(s) : " + ''.join(str(best_sim))				
+
+
+	if len(best_sim) == 0 :	
+		best_sim = bestSim_otherwise(dico_quantiles, dico_genesObj)
+
+	else :	
+		best_sim = random.choice(best_sim)
 	
+	print "Simulation selected : " + str(best_sim)
+
+	genesObj = dico_genesObj[best_sim]
+
+	os.makedirs("all_simulation")
+	os.system("mv sim* all_simulation/.")
+	os.makedirs("FINAL")
+	os.makedirs("cp all_simulation/sim" + str(best_sim) + '/* FINAL/.')
+
+	if Arguments.NUCL : 
+		seqType = "NUCL"
+	else :
+		seqType = "PROT"
+	alignment_file = "sim" + str(best_sim) + "_queries_alignment.fasta"		
+	queries_final_phylogeny(seqType, alignment_file, Arguments.BOOTSTRAP_FINAL, "FINAL")
+
+	#'''
 
 
 
 
 if __name__ == "__main__":
-	main()	        		
+	main()	        	
 
+	'''	
+
+	query_file = open(Arguments.QUERY,'r')
+	lines = query_file.readlines()
+	query_file.close()
+	query_final = "FINAL/FINAL_query.tsv"
+	query_sim_outfile = open(query_final,'w')
+
+	for line in lines :
+
+		if(len(line)>1):
+				
+			line = line.rstrip()
+			line = line.split('\t')[0]
+
+			query_name = line.split('/')[-1]
+			new_query_path = 'FINAL/query/' + query_name
+			
+			copyfile(line, new_query_path)
+
+			for geneObj in genesObj :
+				if geneObj.name == query_name :
+					cov = geneObj.cov
+					id = geneObj.id
+					break
+
+			query_sim_outfile.write(new_query_path + '\t' + str(cov) + '\t' + str(id) + '\n')
+
+	query_sim_outfile.close()
+
+
+	# lancer Naura
+
+	cmd = "NAuRA -i " + Arguments.GENOMES + " -q " + query_final + " --withPhylo " + " -T " + str(Arguments.nbThreads) \
+	+ ' -b ' + str(Arguments.BOOTSTRAP_FINAL) + " -o FINAL -l FINAL_list.txt -m FINAL_matrix.tsv "
+	if Arguments.NUCL : 
+		cmd = cmd + " --nucl "
+	if Arguments.NODRIFT : 
+		cmd = cmd + " --noDrift "
+
+	os.system(cmd)
+	os.system("mv FINAL_list.txt FINAL/.")	
+	os.system("mv FINAL_matrix.tsv FINAL/.")
+	os.system("mv FINAL_queries_alignment.consensus.tree FINAL/.")
+	os.system("mv FINAL_queries_alignment.fasta FINAL/.")
+	os.system("mv FINAL_queries_alignment.tree FINAL/.")	
+
+	'''
