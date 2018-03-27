@@ -519,7 +519,7 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 	else:
 		os.system("makeblastdb -in " + queries_fasta + " -dbtype prot -out " + prefix + "_db")
 		cmd = "blastp -db " + prefix + "_db" + " -query " + prokkaID_fasta + \
-		" -dust no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast
+		" -seg no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast
 
 	os.system(cmd)
 
@@ -807,7 +807,7 @@ def main():
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
 			os.system("makeblastdb -in " + strain + " -dbtype prot -out " + Arguments.prefix + "_db")
 			cmd = "blastp -db " + Arguments.prefix + "_db" + " -query " + fasta_combines + \
-			" -dust no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast 
+			" -seg no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast 
 
 		os.system(cmd)
 		
