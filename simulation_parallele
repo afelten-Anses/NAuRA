@@ -6,7 +6,7 @@ import random
 from itertools import chain
 from shutil import copyfile
 from os import chdir
-#import numpy as np
+import numpy as np
 
 
 def get_parser():
@@ -471,7 +471,7 @@ def main():
 
 	if int(Arguments.TpT) > int(Arguments.nbThreads) :
 		Arguments.TpT = Arguments.nbThreads
-	#'''	
+	'''	
 	query_file = open(Arguments.QUERY,'r')
 	lines = query_file.readlines()
 	query_file.close()
@@ -544,7 +544,8 @@ def main():
 		run_bash_jobs(NAuRA_cmd, mv_cmd)		
 
 	
-	#'''
+	'''
+	'''
 	sim_monophy_list = []
 	sim_not_monophy_list = []
 
@@ -621,14 +622,17 @@ def main():
 	os.makedirs("all_simulation")
 	os.system("mv sim* all_simulation/.")
 	os.makedirs("FINAL")
-	os.makedirs("cp all_simulation/sim" + str(best_sim) + '/* FINAL/.')
+	os.system("cp -r all_simulation/sim" + str(best_sim) + '/* FINAL/.')
+
+	'''
+	best_sim = 1307
 
 	if Arguments.NUCL : 
 		seqType = "NUCL"
 	else :
 		seqType = "PROT"
 	alignment_file = "sim" + str(best_sim) + "_queries_alignment.fasta"		
-	queries_final_phylogeny(seqType, alignment_file, Arguments.BOOTSTRAP_FINAL, "FINAL")
+	#queries_final_phylogeny(seqType, alignment_file, Arguments.BOOTSTRAP_FINAL, "FINAL")
 
 	#'''
 
