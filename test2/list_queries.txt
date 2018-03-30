@@ -1,3 +1,0 @@
-queries/sei.fasta
-queries/sek.fasta
-queries/seq.fasta
