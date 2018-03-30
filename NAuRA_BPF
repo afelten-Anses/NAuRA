@@ -457,6 +457,8 @@ def queries_final_phylogeny(seqType, alignment_file, bootstrap, prefix):
 
 	os.system("sed -i 's/\[&R\] //g' " + prefix + "_queries_alignment.consensus.tree")
 
+	cmd = "rm infile log neighbor.log njcommand outfile outtree pairdist_bootstrap.log protcommand"
+	os.system(cmd)
 
 
 #main function	
