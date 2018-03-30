@@ -512,14 +512,13 @@ def blast_2ndloop(strain_fasta, prokkaID, query_id, all_query_seq, seqType, \
 
 	if seqType == "NUCL" :
 		os.system("makeblastdb -in " + queries_fasta + " -dbtype nucl -out " + prefix + "_db")
-		cmd = "blastn -db " + prefix + "_db" + " -query " + prokkaID_fasta + \
-		" -dust no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast 
-
+		cmd = "blastall -p blastn -d " + prefix + "_db" + " -i " + prokkaID_fasta + \
+		" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 	else:
 		os.system("makeblastdb -in " + queries_fasta + " -dbtype prot -out " + prefix + "_db")
-		cmd = "blastp -db " + prefix + "_db" + " -query " + prokkaID_fasta + \
-		" -seg no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast
+		cmd = "blastall -p blastp -d " + prefix + "_db" + " -i " + prokkaID_fasta + \
+		" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 	os.system(cmd)
 
@@ -754,7 +753,7 @@ def main():
 
 	# check external tools
 	print "--> Check externals tools in PATH"
-	program_needed = ["blastn", "blastp", "pairdist", "clustalo", "sumtrees.py"]	
+	program_needed = ["blastall", "pairdist", "clustalo", "sumtrees.py"]	
 	check_extern_tools(program_needed)
 
 	if Arguments.nucl :
@@ -796,9 +795,8 @@ def main():
 			strain = Arguments.prefix + '_' + id_strain + ".fna"
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
 			os.system("makeblastdb -in " + strain + " -dbtype nucl -out " + Arguments.prefix + "_db")
-			cmd = "blastn -db " + Arguments.prefix + "_db" + " -query " + fasta_combines + \
-			" -dust no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast 
-
+			cmd = "blastall -p blastn -d "  + Arguments.prefix + "_db" + " -i " + fasta_combines + \
+			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 		else:
 			strain_tmp = Arguments.prefix + '_' + id_strain + ".tmp"
@@ -806,8 +804,8 @@ def main():
 			strain = Arguments.prefix + '_' + id_strain + ".faa"	
 			os.system("fasta_formatter -w 70 -i " + strain_tmp + " -o " +strain )
 			os.system("makeblastdb -in " + strain + " -dbtype prot -out " + Arguments.prefix + "_db")
-			cmd = "blastp -db " + Arguments.prefix + "_db" + " -query " + fasta_combines + \
-			" -seg no -num_alignments 1 -xdrop_gap 250 -xdrop_gap_final 500 -outfmt 6 -out " + resultBlast 
+			cmd = "blastall -p blastp -d "  + Arguments.prefix + "_db" + " -i " + fasta_combines + \
+			" -F F -b 1 -X 250 -Z 500 -m 8 -o " + resultBlast 
 
 		os.system(cmd)
 		
