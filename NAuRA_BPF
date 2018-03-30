@@ -436,7 +436,7 @@ def queries_final_phylogeny(seqType, alignment_file, bootstrap, prefix):
 	chdir("FINAL")
 
 	#phylogeny
-	command = "pairdist -b -i " + alignment_file + " -n " + bootstrap
+	command = "pairdist -b -i " + alignment_file + " -n " + str(bootstrap)
 	if seqType == "PROT" :
 		command = command + " -p"
 	os.system(command)
