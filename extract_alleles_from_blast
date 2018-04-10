@@ -1,0 +1,503 @@
+#!/usr/bin/python
+# -*- coding: iso-8859-1 -*-
+#librairies nécessaire au script
+import os, sys
+import argparse
+import glob
+import subprocess
+from Bio import SeqIO
+from os import chdir
+
+
+__doc__="""
+@requires: cd-hit (https://github.com/weizhongli/cdhit)
+@requires: Fastx-toolkit (http://hannonlab.cshl.edu/fastx_toolkit/download.html)
+"""
+
+
+
+def get_parser():
+
+
+	parser = argparse.ArgumentParser(description='Nice Automatic Research of Alleles')
+
+	parser.add_argument('-i', action="store", dest='Repertoire', 
+						type=str, required=True, help="Folder with GBK files, theses files must be in the format \
+						'GENOMEid.gbk' (REQUIRED)")
+	
+	parser.add_argument('-b', action="store", dest='BlastRepertoire',
+                     type=str, required=True, help="Folder with blast output files (REQUIRED)")
+
+	parser.add_argument('-m', action="store", dest='matrice', 
+                     type=str, required=True, help='Matrix file if exists (default:matrix.tsv)')
+	
+	parser.add_argument('-q', action="store", dest='query', 
+						type=str, required=True, help="Text file with query Fasta path, one per line (REQUIRED). \
+						Optional, set cov and id percent separated by tabulation. Add '_1' for each query. \
+						No supplementary '_' character. Each query file name must have the same name as the allele name.")
+	
+	parser.add_argument('-pl', action="store", dest='pourcentage_longueur', 
+						type=int, default=80, help='Minimum percent of alignment coverage \
+						(default:80)')
+	
+	parser.add_argument('-ph', action="store", dest='pourcentage_homologie', 
+						type=int, default=80, help='Minimum percent of the alignment identity \
+						(default:80)')
+
+	parser.add_argument('-T', action="store", dest='nbThreads', 
+						type=str, default='2', help='Number of threads to use\
+						(default:2)')
+
+	return parser
+
+
+class CDS_nucl(object):
+	# Class used to extract CDS nucleic sequence from genbank file
+
+	def __init__(self):
+		"""
+		Initialize the var class
+		"""
+		self.id = ""
+		self.pos_start = 0
+		self.pos_end = 0
+		self.complement = False
+		self.sequence = ""
+
+	def extract_seq(self, sequence):
+
+		if self.complement == False:
+			self.sequence = sequence[self.pos_start-1:self.pos_end]
+
+		else:
+			self.sequence = ''.join(reversed(sequence[self.pos_start-1:self.pos_end]))
+			self.sequence_complement()
+
+	def sequence_complement(self):
+
+		seq_complement = ""
+		for nucl in self.sequence:
+			if nucl.upper() == 'A':
+				seq_complement = seq_complement + 'T'
+			elif nucl.upper() == 'T':
+				seq_complement = seq_complement + 'A'
+			elif nucl.upper() == 'G':
+				seq_complement = seq_complement + 'C'
+			elif nucl.upper() == 'C':
+				seq_complement = seq_complement + 'G'
+		self.sequence = seq_complement
+
+	def write_fasta(self, outfile):
+
+		out = open(outfile, 'a')
+		#out.write('>' + self.id + '\n' + self.sequence.upper() + '\n\n')
+		out.write('>' + self.id + '\n')
+		i = 0
+		for nucl in self.sequence.upper():
+			out.write(nucl)
+			i += 1
+			if i == 70:
+				i = 0
+				out.write('\n')
+		out.write('\n\n')
+		out.close()
+
+
+def genbank_to_fna(genbank, fasta):
+	# extract CDS nucleic from genbank
+	gbk = open(genbank, 'r')
+	lines = gbk.readlines()
+	gbk.close()
+
+	is_seq = False
+
+	list_CDS_per_contig = []
+	list_prokkaID = []
+	new_gene = False
+
+	for line in lines:
+
+		line = line.rstrip()
+
+		if ' CDS ' in line:
+			new_CDS = CDS_nucl()
+			new_gene = True
+
+			if "complement" in line:
+				new_CDS.complement = True
+				line = line.replace("complement(", '')
+				line = line.replace(")", '')
+			line = line.replace(' ', '')
+			line = line.replace("CDS", '')
+			new_CDS.pos_start = int(line.split('.')[0])
+			new_CDS.pos_end = int(line.split('.')[-1])
+
+		elif '/locus_tag=' in line and new_gene:
+			new_gene = False
+			prokkaID = line.split('"')[1]
+			if prokkaID not in list_prokkaID:
+				list_prokkaID.append(prokkaID)
+			else:
+				prokkaID = prokkaID + '-2'
+				while prokkaID in list_prokkaID:
+					ID = int(prokkaID.split('-')[-1]) + 1
+					prokkaID = '-'.join(prokkaID.split('-')[0:-1]) + '-' + str(ID)
+			new_CDS.id = prokkaID
+			list_CDS_per_contig.append(new_CDS)
+
+		elif 'ORIGIN' in line.split(' ')[0]:
+			is_seq = True
+			sequence = ""
+
+		elif "//" in line and len(list_CDS_per_contig) > 0 and len(sequence) > 0:
+			is_seq = False
+			for CDS_object in list_CDS_per_contig:
+				CDS_object.extract_seq(sequence)
+				CDS_object.write_fasta(fasta)
+			list_CDS_per_contig = []
+
+		elif is_seq:
+			for character in line:
+				if character == 'a' or character == 't' or \
+                                        character == 'g' or character == 'c':
+					sequence = sequence + character
+
+
+def blast_filter(resultBlast, dico_cov_id, strain_faa,
+                 query_faa, query_list):
+	# filter blast result and select allele number if filter pass
+
+	blastfile = open(resultBlast, 'r')
+	lines = blastfile.readlines()
+	blastfile.close()
+
+	query_len = fasta_length(query_faa)
+
+	dico_result = {}
+
+	last_queryId = ""
+
+	prokkaID = ''
+
+	for line in lines:
+
+		line = line.rstrip()
+		line = line.split('\t')
+
+		query_id = line[0]
+		if '_' not in query_id :
+			query_id_withoutNb = query_id
+			query_id = query_id + "_1"
+		else:
+			query_id_withoutNb = '_'.join(query_id.split('_')[0:-1])
+
+		if last_queryId == "":
+			last_queryId = query_id_withoutNb
+
+		pourcentage_homologie = dico_cov_id[query_id_withoutNb][1]
+		pourcentage_longueur = dico_cov_id[query_id_withoutNb][0]
+
+		#filtre homologie
+		if(float(line[2]) < pourcentage_homologie):
+			continue
+
+		#filtre prc longueur
+		if(float(line[3])/float(query_len[query_id])*100.0 < pourcentage_longueur):
+			continue
+
+
+		prokkaID = line[1]
+		dico_result[query_id_withoutNb] = prokkaID
+
+	return dico_result
+
+
+def fasta_length(fasta):
+	# return a dictionnary with the sequence and their length
+
+	dico_len = {}
+
+	FastaFile = open(fasta, 'rU')
+
+	for rec in SeqIO.parse(FastaFile, 'fasta'):
+	    name = rec.id
+	    seq = rec.seq
+	    seqLen = len(rec)
+	    dico_len[name] = seqLen
+
+	FastaFile.close()
+
+	return dico_len
+
+
+def findType(query_len, query_id):
+	# Find a new allele number
+
+	query_without_typeNumber = query_id.split("_")[0]
+
+	i = 1
+	for element in query_len:
+		if query_without_typeNumber == element.split('_')[0]:
+			i += 1
+	return i
+
+
+def fastaFiles_merge(query, output_fasta_combin, cov, id):
+	# merge all alleles in a fasta file and return a dictionnary with specific
+	# similarity and coverage for each query
+
+	#nom fichier query == nom de la query (xxxx.faa --> >xxx_1 dans fasta)
+
+	fastas = open(query, 'r')
+	lines = fastas.readlines()
+	fastas.close()
+
+	dico_query = {}
+
+	liste_fasta = []
+
+	for line in lines:
+		line = line.rstrip()
+		fasta_path = line.split('\t')[0]
+		if len(fasta_path) == 0:
+			continue
+		liste_fasta.append(fasta_path)
+
+		tmp = open(fasta_path, 'r')
+		tmp_lines = tmp.readlines()
+		tmp.close()
+		#query_name = tmp_lines[0].split('_')[0]
+		#query_name = query_name.replace('>','')
+
+		query_name = line.split('/')[-1].split('.')[0]
+
+		if len(line.split('\t')) == 3:
+			iCov = line.split('\t')[1]
+			iId = line.split('\t')[2]
+
+			if iCov == "":
+				iCov = cov
+			else:
+				iCov = int(line.split('\t')[1])
+
+			if iId == "":
+				iID = id
+			else:
+				iId = int(line.split('\t')[2])
+
+			dico_query[query_name] = [iCov, iId]
+
+		elif len(line.split('\t')) == 2:
+			iCov = line.split('\t')[1]
+
+			if iCov == "":
+				iCov = cov
+			else:
+				iCov = int(line.split('\t')[1])
+			dico_query[query_name] = [iCov, id]
+
+		elif len(line.split('\t')) == 1:
+
+			dico_query[query_name] = [cov, id]
+
+	with open(output_fasta_combin, 'w') as w_file:
+		for filen in liste_fasta:
+			with open(filen, 'rU') as o_file:
+				seq_records = SeqIO.parse(o_file, 'fasta')
+				SeqIO.write(seq_records, w_file, 'fasta')
+
+	return dico_query
+
+
+def matrix_reader(matrix_file):
+
+	matrix_file = open(matrix_file, 'r')
+	lines = matrix_file.readlines()
+	matrix_file.close()
+
+	matrix_dico = {}
+	first_line = True
+	query_list = []
+
+	for line in lines :
+
+		line = line.rstrip().split('\t')
+
+		if first_line :
+			first_line = False
+
+			for element in line[1:] :
+				query_list.append(element)
+		else :
+			genome = line[0]
+			matrix_dico[genome] = {}
+			i = 0
+			for element in line[1:] :
+				matrix_dico[genome][query_list[i]] = element
+				i+=1
+
+	return matrix_dico			
+
+
+def matrix_writer(matrix_dico, matrix_file):
+
+	matrixFile = open(matrix_file, 'w')
+
+	oneKey = matrix_dico.keys()[0]
+	query_list = matrix_dico[oneKey].keys()
+
+	matrixFile.write('\t' + '\t'.join(query_list) + '\n')
+
+	for genome in matrix_dico :
+		matrixFile.write(genome)
+		for query in query_list :
+			matrixFile.write('\t' + matrix_dico[genome][query])
+		matrixFile.write('\n')
+
+	matrixFile.close()
+
+
+def matrix_modification(clstr_file, query_name, matrice, correspondance_id):
+
+	clstr = open(clstr_file,'r')
+	lines = clstr.readlines()
+	clstr.close()
+
+	for line in lines :
+		if ">Cluster" not in line :
+			old_header = line.split('>')[1].split("...")[0]
+			genome = '_'.join(old_header.split('_')[0:-2])
+			if line[0] == '0' : # reference
+				new_id = correspondance_id[old_header].split('_')[-1]
+			matrice[genome][query_name] = new_id
+
+
+def clstrReader_and_rename_alleles(clstr_file, query_name, matrice, query_fasta):
+
+	fasta_dict = SeqIO.to_dict(SeqIO.parse(query_fasta, "fasta"))
+	query_final_nucl = query_name + "_all_nucl_alleles.tmp"
+
+	correspondance_id = {}
+	dico_versionProt = {}
+
+	query_final_nucl_file = open(query_final_nucl, "w")
+
+	for header in fasta_dict :
+
+		genome_id = header.split('_')[0]
+		num_versionProt = matrice[genome_id][query_name]
+
+		if num_versionProt in dico_versionProt :
+			dico_versionProt[num_versionProt] += 1
+		else :
+			dico_versionProt[num_versionProt] = 1
+
+		num_alleleNucl = str(dico_versionProt[num_versionProt])
+		new_header = query_name + '_' + num_versionProt.replace(' ','') + '.' + num_alleleNucl
+		correspondance_id[header] = new_header
+
+		query_final_nucl_file.write('>' + new_header + '\n')
+		query_final_nucl_file.write(str(fasta_dict[header].seq) + '\n\n')
+		#matrice[genome_id][query_name] = num_versionProt + '.' + num_alleleNucl
+
+	query_final_nucl_file.close()
+
+	query_result = query_final_nucl.split('.')[0] + ".fna"
+	cmd = "fasta_formatter -w 70 -i " + query_final_nucl + " -o " + query_result	  
+	os.system(cmd)
+
+	matrix_modification(clstr_file, query_name, matrice, correspondance_id)
+
+	os.system("rm " + query_final_nucl + " " + query_name + " " + clstr_file)
+
+
+
+
+#main function	
+def main():
+
+	parser = get_parser()
+
+	#print parser.help if no arguments
+	if len(sys.argv) == 1:
+		parser.print_help()
+		sys.exit(1)
+
+	Arguments = parser.parse_args()
+	Arguments.prefix = "output"
+
+	# récupérer la liste des génomes gbk
+	if Arguments.Repertoire[-1] != '/':
+		Arguments.Repertoire = Arguments.Repertoire + '/'
+	genbank_files = glob.glob(Arguments.Repertoire + "*.gbk")
+	dico_souche = {}
+
+	# récupérérer tous les fichiers blast d'un dossier
+	if Arguments.BlastRepertoire[-1] != '/':
+		Arguments.BlastRepertoire = Arguments.BlastRepertoire + '/'
+	blast_files = glob.glob(Arguments.BlastRepertoire + "*.tsv")
+	
+	# récupérer la liste des queries pour avoir les filtres
+	fasta_combines = "all_protein.faa"
+	dico_query = fastaFiles_merge(Arguments.query, fasta_combines,
+	                 Arguments.pourcentage_longueur, Arguments.pourcentage_homologie)
+
+	#lire et stocker la matrice
+	matrix = matrix_reader(Arguments.matrice)
+
+	# pour chaque fichier blast
+
+	query_nucl_files = []
+
+	for element in genbank_files:
+
+		id_strain = element.split('/')[-1].split('.')[0]
+		resultBlast = Arguments.BlastRepertoire + Arguments.prefix + \
+			'_' + id_strain + "_blast.tsv"
+		fna = id_strain + ".fna"
+		tmpFile = id_strain + ".tmp"
+
+		genbank_to_fna(element, tmpFile)
+		os.system("fasta_formatter -w 70 -i " + tmpFile + " -o " + fna)
+		os.system("rm " + tmpFile)
+
+		# filtrer le fichier
+		dico_souche[id_strain] = blast_filter(resultBlast, dico_query,
+            fna, fasta_combines, Arguments.query)
+
+		record_dict = SeqIO.to_dict(SeqIO.parse(fna, "fasta"))
+
+		# récupérer le numéro prokka
+		# ajouter cette séquence dans le fichier fasta du gène associé
+		for query in dico_souche[id_strain]:
+			filename = query + "_nucl.fasta"
+
+			if filename not in query_nucl_files :
+				query_nucl_files.append(filename)
+
+			fastaFile = open(filename, 'a')
+			fastaFile.write(">" + id_strain + '_' + dico_souche[id_strain][query] + '\n')
+			fastaFile.write(str(record_dict[dico_souche[id_strain][query]].seq))
+			fastaFile.write('\n\n')
+			fastaFile.close()
+
+		os.system("rm " + fna)
+
+		# faire un cdhit
+		# ajouter dans la matrice le numéro de l'allèle
+
+	for file_nucl in query_nucl_files :
+
+		query = file_nucl.split('_')[0]
+		cmd = "cd-hit-est -d 0 -c 1 -n 10 -o " + query + " -i " + file_nucl + " -T " + Arguments.nbThreads 
+		os.system(cmd)
+		clstrReader_and_rename_alleles(query + ".clstr", query, matrix, query)
+		os.system("rm " + query + "_nucl.fasta")
+
+	os.system("rm all_protein.faa")
+
+	matrix_writer(matrix, "matrix_allelesNucl.tsv")
+
+if __name__ == "__main__":
+	main()					
+		

@@ -365,6 +365,8 @@ def blast_filter(resultBlast, dico_cov_id, strain_faa, \
 	add_seq = False
 	Pass = False
 
+	prokkaID = ''
+
 	for line in lines :
 
 		line = line.rstrip()
