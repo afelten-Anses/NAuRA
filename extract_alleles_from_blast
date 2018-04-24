@@ -25,6 +25,9 @@ def get_parser():
 						type=str, required=True, help="Folder with GBK files, theses files must be in the format \
 						'GENOMEid.gbk' (REQUIRED)")
 	
+	parser.add_argument('-p', action="store", dest='prefix',
+                     type=str, default="output", help="blast files prefix (default:output)")
+
 	parser.add_argument('-b', action="store", dest='BlastRepertoire',
                      type=str, required=True, help="Folder with blast output files (REQUIRED)")
 
@@ -424,7 +427,7 @@ def main():
 		sys.exit(1)
 
 	Arguments = parser.parse_args()
-	Arguments.prefix = "output"
+	#Arguments.prefix = "output"
 
 	# récupérer la liste des génomes gbk
 	if Arguments.Repertoire[-1] != '/':
