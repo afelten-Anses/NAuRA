@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!python
 # -*- coding: iso-8859-1 -*-
 #librairies nécessaire au script
 import os, sys
