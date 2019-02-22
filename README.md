@@ -28,6 +28,13 @@ Quick Start
 
 ## Usage (Linux/Mac OS X)
 
+## Install with conda
+
+	conda config --add channels afelten
+	conda install naura
+
+## Usage (Linux/Mac OS X)
+
 If it's necessary, make NAuRA excecutable :
 
 	chmod +x NAuRA
