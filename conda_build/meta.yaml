@@ -1,0 +1,29 @@
+package:
+    name: "naura"
+    version: "0.4"
+
+source:
+    path: /home/afelten/Bureau/scratch/NAuRA/           
+
+requirements:
+    host:
+        - python    
+        - setuptools
+        - git
+
+    run:
+        - biopython=1.72
+        - python=2.7 
+        - blast
+        - fastx_toolkit
+        - clustalo
+        - clustalw
+        - dendropy
+        - phylip
+
+about:
+    home: https://github.com/afelten-Anses/NAuRA
+    license: GNU General Public v2 (GPLv2)
+    license_family: GPL2 
+    license_file: LICENSE
+    summary: Nice automated research of alleles

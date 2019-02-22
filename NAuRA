@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 #librairies nécessaire au script
 import os, sys
@@ -657,7 +657,7 @@ def queries_alignment_and_phylogeny(combin_fasta, seqType, nbThreads, bootstrap,
 	chdir(prefix + "_pairdist")
 
 	#phylogeny
-	command = "pairdist -b -i ../" + alignment_file + " -n " + bootstrap
+	command = "pairdist.py -b -i ../" + alignment_file + " -n " + bootstrap
 	if seqType == "PROT" :
 		command = command + " -p"
 	os.system(command)
@@ -756,7 +756,7 @@ def main():
 
 	# check external tools
 	print("--> Check externals tools in PATH")
-	program_needed = ["blastn", "blastp", "pairdist", "clustalo", "sumtrees.py"]	
+	program_needed = ["blastn", "blastp", "pairdist.py", "clustalo", "sumtrees.py"]	
 	check_extern_tools(program_needed)
 
 	if Arguments.nucl :
